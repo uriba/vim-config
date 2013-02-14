@@ -14,6 +14,12 @@ au BufRead,BufNewFile *.lucius setfiletype lucius
 filetype plugin on
 " switch on syntax highlighting
 syntax on
+" vim-latex:
+" IMPORTANT: grep will sometimes skip displaying the file name if you
+" " search in a singe file. This will confuse Latex-Suite. Set your grep
+" " program to always generate a file-name.
+set grepprg=grep\ -nH\ $*
+let g:tex_flavor='latex'
 
 " configure browser for haskell_doc.vim
 let g:haddock_browser = "google-chrome"
