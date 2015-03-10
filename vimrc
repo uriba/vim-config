@@ -1,3 +1,4 @@
+set nocompatible
 set smartindent
 set shiftwidth=4 softtabstop=4 tabstop=4
 set expandtab
@@ -11,7 +12,8 @@ au BufRead,BufNewFile *.cassius setfiletype cassius
 au BufRead,BufNewFile *.julius setfiletype julius
 au BufRead,BufNewFile *.lucius setfiletype lucius
 
-filetype plugin on
+execute pathogen#infect()
+filetype plugin indent on
 " switch on syntax highlighting
 syntax on
 " vim-latex:
