@@ -14,6 +14,12 @@ let s:doneOnce = 1
 
 let s:path = fnameescape(expand("<sfile>:p:h"))
 
+if Tex_GetVarValue('Tex_EnvEndWithCR')
+	let s:end_with_cr = "\<CR>"
+else
+	let s:end_with_cr = ""
+end
+
 let s:menu_div = 20
 
 com! -nargs=0 TPackageUpdate :silent! call Tex_pack_updateall(1)
@@ -187,9 +193,16 @@ function! Tex_pack_updateall(force)
 		" modified etc.
 		split
 
-		call Tex_Debug(':Tex_pack_updateall: silent! find '.Tex_EscapeSpaces(packname).'.sty', 'pack')
 		let thisbufnum = bufnr('%')
-		exec 'silent! find '.Tex_EscapeSpaces(packname).'.sty'
+		call Tex_Debug(':Tex_pack_updateall: findfile("'.Tex_EscapeSpaces(packname).'.sty")', 'pack')
+		let package_file = findfile( Tex_EscapeSpaces(packname) .'.sty' )
+
+		if package_file != ""
+			call Tex_Debug(':Tex_pack_updateall: found "'. package_file .'"', 'pack')
+			exec 'view ' . package_file
+		else
+			call Tex_Debug(':Tex_pack_updateall: did not found "'. Tex_EscapeSpaces(packname) .'.sty' .'" in "' . &path . '"', 'pack')
+		end
 		call Tex_Debug(':Tex_pack_updateall: present file = '.bufname('%'), 'pack')
 
 		" If this file was not found, assume that it means its not a
@@ -219,7 +232,10 @@ function! Tex_pack_updateall(force)
 		" Do not use bwipe, but that leads to excessive buffer number
 		" consumption. Besides, its intuitive for a custom package to remain
 		" on the buffer list.
-		q
+		" q
+
+		" Kick the custom package out from the buffer list.
+		bwipe
 
 		let i = i + 1
 		let packname = Tex_Strntok(g:Tex_package_detected, ',', i)
@@ -397,8 +413,8 @@ function! Tex_ScanForPackages(...)
 		call Tex_Debug(":Tex_ScanForPackages: found package(s) [".@a."] on line ".line('.'), "pack")
 
 		" restore @a
-		let @a = saveA
-		let @" = saveUnnamed
+		call setreg("a", saveA, "c")
+		call setreg("\"", saveUnnamed, "c")
 	endwhile
 	call Tex_Debug(":Tex_ScanForPackages: End scan \\usepackage, detected packages = ".g:Tex_package_detected, "pack")
 
@@ -605,9 +621,9 @@ let s:CommandSpec_nor = '\<+replace+>'
 let s:CommandSpec_noo = '\<+replace+>[<++>]'
 let s:CommandSpec_nob = '\<+replace+>[<++>]{<++>}{<++>}<++>'
 
-let s:CommandSpec_env = '\begin{<+replace+>}'."\<CR><++>\<CR>".'\end{<+replace+>}<++>'
-let s:CommandSpec_ens = '\begin{<+replace+>}<+extra+>'."\<CR><++>\<CR>".'\end{<+replace+>}<++>'
-let s:CommandSpec_eno = '\begin[<++>]{<+replace+>}'."\<CR><++>\<CR>".'\end{<+replace+>}'
+let s:CommandSpec_env = '\begin{<+replace+>}'."\<CR><++>\<CR>".'\end{<+replace+>}'.s:end_with_cr.'<++>'
+let s:CommandSpec_ens = '\begin{<+replace+>}<+extra+>'."\<CR><++>\<CR>".'\end{<+replace+>}'.s:end_with_cr.'<++>'
+let s:CommandSpec_eno = '\begin[<++>]{<+replace+>}'."\<CR><++>\<CR>".'\end{<+replace+>}'.s:end_with_cr.'<++>'
 
 let s:CommandSpec_spe = '<+replace+>'
 let s:CommandSpec_    = '\<+replace+>'

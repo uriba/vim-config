@@ -187,18 +187,24 @@ function! Tex_Debug(str, ...)
 	else
 		let pattern = ''
 	endif
-	if !exists('s:debugString_'.pattern)
-		let s:debugString_{pattern} = ''
-	endif
-	let s:debugString_{pattern} = s:debugString_{pattern}.a:str."\n"
 
-	let s:debugString_ = (exists('s:debugString_') ? s:debugString_ : '')
-		\ . pattern.' : '.a:str."\n"
-
+	" If 'Tex_DebugLog' is given, write debug information into this file
+	" (preferred method).
+	" Otherwise, save it in a variable
 	if Tex_GetVarValue('Tex_DebugLog') != ''
 		exec 'redir! >> '.Tex_GetVarValue('Tex_DebugLog')
 		silent! echo pattern.' : '.a:str
 		redir END
+	else
+		if !exists('s:debugString_'.pattern)
+			let s:debugString_{pattern} = ''
+		endif
+		let s:debugString_{pattern} = s:debugString_{pattern}.a:str."\n"
+
+		if !exists('s:debugString_')
+			let s:debugString_ = ''
+		endif
+		let s:debugString_ = s:debugString_ . pattern.' : '.a:str."\n"
 	endif
 endfunction " }}}
 " Tex_PrintDebug: prings s:debugString {{{
@@ -412,7 +418,7 @@ function! Tex_GetMainFileName(...)
 		return retval
 	endif
 
-	let s:origdir = fnameescape(getcwd())
+	let l:origdir = fnameescape(getcwd())
 
 	let dirmodifier = '%:p:h'
 	let dirLast = fnameescape(expand(dirmodifier))
@@ -443,7 +449,7 @@ function! Tex_GetMainFileName(...)
 		let lheadfile = expand('%'.modifier)
 	endif
 
-	exe 'cd '.s:origdir
+	exe 'cd '.l:origdir
 
 	" NOTE: The caller of this function needs to escape the file name with
 	"       fnameescape() . The reason its not done here is that escaping is not
@@ -464,35 +470,6 @@ function! Tex_ChooseFromPrompt(dialog, list, sep)
 		return inp
 	endif
 endfunction " }}}
-" Tex_ChooseFile: produces a file list and prompts for choice {{{
-" Description: 
-function! Tex_ChooseFile(dialog)
-	let files = glob('*')
-	if files == ''
-		return ''
-	endif
-	let s:incnum = 0
-	echo a:dialog
-	let filenames = substitute(files, "\\v(^|\n)", "\\=submatch(0).Tex_IncrementNumber(1).' : '", 'g')
-	echo filenames
-	let choice = input('Enter Choice : ')
-	let g:choice = choice
-	if choice == ''
-		return ''
-	endif
-	if choice =~ '^\s*\d\+\s*$'
-		let retval = Tex_Strntok(files, "\n", choice)
-	else
-		let filescomma = substitute(files, "\n", ",", "g")
-		let retval = GetListMatchItem(filescomma, choice)
-	endif
-	if retval == ''
-		return ''
-	endif
-	return retval
-endfunction 
-
-" }}}
 " Tex_IncrementNumber: returns an incremented number each time {{{
 " Description: 
 let s:incnum = 0
@@ -569,7 +546,7 @@ function! Tex_GetErrorList()
 	let _a = @a
 	redir @a | silent! clist | redir END
 	let errlist = @a
-	let @a = _a
+	call setreg("a", _a, "c")
 
 	if errlist =~ 'E42: '
 		let errlist = ''
@@ -583,7 +560,7 @@ endfunction " }}}
 "              us to create temporary files in a specified directory.
 function! Tex_GetTempName(dirname)
 	let prefix = 'latexSuiteTemp'
-	let slash = (a:dirname =~ '\\\|/$' ? '' : '/')
+	let slash = (a:dirname =~ '\\$\|/$' ? '' : '/')
 	let i = 0
 	while filereadable(a:dirname.slash.prefix.i.'.tex') && i < 1000
 		let i = i + 1
@@ -971,9 +948,12 @@ else
 	endfunction
 endif " }}}
 " Tex_CatFile: returns the contents of a file in a <NL> seperated string {{{
-if has('*readfile')
+if exists('*readfile')
 	function! Tex_CatFile(filename)
-		return join(readfile(filename), "\n")
+		if glob(a:filename) == ''
+			return ''
+		endif
+		return join(readfile(a:filename), "\n")
 	endfunction
 elseif has('python') && g:Tex_UsePython
 	function! Tex_CatFile(filename)
@@ -1001,7 +981,7 @@ else
 		let _a = @a
 		silent! normal! ggVG"ay
 		let retval = @a
-		let @a = _a
+		call setreg("a", _a, "c")
 
 		silent! bd
 		let &report = _report
